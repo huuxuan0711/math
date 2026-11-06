@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MathLab</string>
+    <string name="tab_math_lab">Tính Toán</string>
+    <string name="tab_sync_lab">Đồng Bộ Hóa</string>
+    <string name="tab_benchmark">Đa Nhân</string>
+</resources>
