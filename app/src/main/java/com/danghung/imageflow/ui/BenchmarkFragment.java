@@ -22,29 +22,32 @@ import com.danghung.imageflow.engine.MathEngines;
 import com.danghung.imageflow.util.CpuUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 public class BenchmarkFragment extends Fragment {
 
-    private static final String TAG = "BenchmarkFragment";
-    private static final long MAX = 2_000_000L;
-    private static final int[] WORKER_CONFIGS = {1, 2, 4, 8, 16};
-    private static final int[] BAR_COLORS = {
-            Color.parseColor("#1976D2"),
-            Color.parseColor("#388E3C"),
-            Color.parseColor("#F57C00"),
-            Color.parseColor("#7B1FA2"),
-            Color.parseColor("#D32F2F")
+    private static final long MAX = 16_000_000L;
+
+    // 0 = Single Thread
+    private static final int[] WORKERS = {0, 2, 4, 8, 16};
+
+    private static final int[] COLORS = {Color.parseColor("#607D8B"), // Single
+            Color.parseColor("#388E3C"), // 2 Workers
+            Color.parseColor("#F57C00"), // 4 Workers
+            Color.parseColor("#7B1FA2"), // 8 Workers
+            Color.parseColor("#D32F2F")  // 16 Workers
     };
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
     private FragmentBenchmarkBinding binding;
     private ExecutorService benchmarkExecutor;
     private int runId = 0;
@@ -60,152 +63,117 @@ public class BenchmarkFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        setupCpuInfo();
+        binding.tvCpuInfo.setText(String.format(Locale.US,
+                "CPU Core khả dụng: %d\nAndroid: %s",
+                CpuUtils.getAvailableProcessors(),
+                Build.VERSION.RELEASE));
+
         binding.benchmarkChart.setItems(new ArrayList<>());
         binding.btnRunBenchmark.setOnClickListener(v -> startBenchmark());
     }
 
-    private void setupCpuInfo() {
-        int cores = CpuUtils.getAvailableProcessors();
-        ActivityManager manager = (ActivityManager) requireContext().getSystemService(Context.ACTIVITY_SERVICE);
-        ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
-
-        if (manager != null) {
-            manager.getMemoryInfo(memoryInfo);
-        }
-
-        long realRamMB = memoryInfo.totalMem / (1024L * 1024L);
-        long allocatedRamMB = Runtime.getRuntime().maxMemory() / (1024L * 1024L);
-
-        String info = String.format(
-                Locale.US,
-                "CPU Core khả dụng: %d\nRAM thực: %,d MB\nRAM giới hạn App Heap: %,d MB\nAndroid: %s",
-                cores, realRamMB, allocatedRamMB, Build.VERSION.RELEASE
-        );
-
-        Log.i(TAG, "Hardware Info -> Cores: " + cores + ", RAM: " + realRamMB + "MB, HeapLimit: " + allocatedRamMB + "MB");
-        binding.tvCpuInfo.setText(info);
-    }
 
     private void startBenchmark() {
         if (benchmarkExecutor != null) {
-            Log.d(TAG, "Cancelling previous benchmark execution...");
             benchmarkExecutor.shutdownNow();
         }
 
-        final int currentRun = ++runId;
-        Log.i(TAG, "Starting Benchmark Run #" + currentRun + " with MAX=" + MAX);
+        int currentRun = ++runId;
 
         binding.btnRunBenchmark.setEnabled(false);
         binding.pbBenchmark.setVisibility(View.VISIBLE);
-
-        binding.tvBenchmarkDetails.setText(String.format(
-                Locale.US,
-                "BENCHMARK ĐA NHÂN\nBài toán: Đếm số nguyên tố từ 2 đến %,d\nCấu hình: 1, 2, 4, 8 và 16 Worker(s)\n----------------------------------------\n",
-                MAX
-        ));
-
         binding.benchmarkChart.setItems(new ArrayList<>());
 
+        binding.tvBenchmarkDetails.setText(String.format(Locale.US, "BENCHMARK ĐA NHÂN\n" + "Bài toán: Đếm số nguyên tố từ 2 đến %,d\n" + "Cấu hình: Single Thread, 2, 4, 8, 16 Workers\n" + "----------------------------------------\n", MAX));
+
         benchmarkExecutor = Executors.newSingleThreadExecutor();
-        benchmarkExecutor.submit(() -> runBenchmark(currentRun));
+        benchmarkExecutor.execute(() -> runBenchmark(currentRun));
     }
 
     private void runBenchmark(int currentRun) {
         List<BenchmarkChartView.BarItem> chartItems = new ArrayList<>();
 
-        for (int i = 0; i < WORKER_CONFIGS.length; i++) {
-            if (Thread.currentThread().isInterrupted()) {
-                Log.w(TAG, "Benchmark Run #" + currentRun + " was interrupted.");
-                return;
+        try {
+            for (int i = 0; i < WORKERS.length; i++) {
+                if (Thread.currentThread().isInterrupted()) return;
+                int workers = WORKERS[i];
+                String label = workers == 0 ? "Single" : workers + "W";
+
+                Set<Integer> cores = Collections.synchronizedSet(new HashSet<>());
+                appendLog(currentRun, "Đang thử nghiệm: " + label + "...\n");
+
+                long start = SystemClock.elapsedRealtime();
+                int totalPrimes = workers == 0 ? countSingleThread(cores) : countMultiThread(workers, cores);
+                long elapsed = SystemClock.elapsedRealtime() - start;
+                Log.i("BenchmarkFragment", String.format(Locale.US,
+                        "[%s] Hoàn tất sau %,d ms | Tổng số nguyên tố: %,d | Cores: %s",
+                        label, elapsed, totalPrimes, cores));
+                chartItems.add(new BenchmarkChartView.BarItem(label, elapsed, COLORS[i]));
+                appendLog(currentRun, String.format(Locale.US, "✓ %s: %,d ms | Số nguyên tố: %,d\n" + "  CPU Core ghi nhận: %s\n", label, elapsed, totalPrimes, cores));
+                updateChart(currentRun, chartItems);
             }
 
-            int workers = WORKER_CONFIGS[i];
-            int color = BAR_COLORS[i];
 
-            Log.d(TAG, "Running configuration: " + workers + " Worker(s)");
-            appendLog(currentRun, "Đang thử nghiệm với " + workers + " Worker(s)...\n");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
 
-            long start = SystemClock.elapsedRealtime();
-            Set<Integer> coresUsed = new HashSet<>();
-            ExecutorService pool = Executors.newFixedThreadPool(workers);
+        } catch (ExecutionException e) {
+            appendLog(currentRun, "❌ Lỗi benchmark: " + e.getCause() + "\n");
+        } finally {
+            finishBenchmark(currentRun);
+        }
+    }
+
+    // Single Thread: Xử lý toàn bộ dữ liệu tuần tự
+    private int countSingleThread(Set<Integer> cores) {
+        recordCore(cores);
+
+        int result = MathEngines.countPrimes(2, MAX);
+
+        recordCore(cores);
+        return result;
+    }
+
+    // Multi Worker: Chia dữ liệu cho nhiều Worker
+    private int countMultiThread(int workers, Set<Integer> cores) throws InterruptedException, ExecutionException {
+
+        ExecutorService pool = Executors.newFixedThreadPool(workers);
+        try {
             List<Future<Integer>> futures = new ArrayList<>();
-
             long total = MAX - 1;
             long range = total / workers;
 
-            for (int j = 0; j < workers; j++) {
-                final long from = 2 + j * range;
-                final long to = (j == workers - 1) ? MAX : from + range - 1;
+            for (int i = 0; i < workers; i++) {
+                long from = 2 + i * range;
+                long to = (i == workers - 1) ? MAX : from + range - 1;
 
-                Callable<Integer> task = () -> {
-                    int startCore = CpuUtils.getCurrentCoreId();
-                    if (startCore >= 0) {
-                        synchronized (coresUsed) { coresUsed.add(startCore); }
-                    }
-
-                    int primes = MathEngines.countPrimes(from, to);
-
-                    int endCore = CpuUtils.getCurrentCoreId();
-                    if (endCore >= 0) {
-                        synchronized (coresUsed) { coresUsed.add(endCore); }
-                    }
-                    return primes;
-                };
-
-                futures.add(pool.submit(task));
-            }
+                futures.add(pool.submit(() -> {
+                    recordCore(cores);
+                    int result = MathEngines.countPrimes(from, to);
+                    recordCore(cores);
+                    return result;
+                }));}
 
             int totalPrimes = 0;
-
-            try {
-                for (Future<Integer> future : futures) {
-                    totalPrimes += future.get();
-                }
-            } catch (InterruptedException e) {
-                Log.w(TAG, "Worker pool interrupted: " + e.getMessage());
-                Thread.currentThread().interrupt();
-                pool.shutdownNow();
-                return;
-            } catch (Exception e) {
-                Log.e(TAG, "Error executing benchmark tasks: " + e.getMessage(), e);
-                pool.shutdownNow();
-                appendLog(currentRun, "❌ Lỗi benchmark: " + e.getMessage() + "\n");
-                finishBenchmark(currentRun);
-                return;
-            }
-
-            pool.shutdown();
-
-            long elapsed = SystemClock.elapsedRealtime() - start;
-            chartItems.add(new BenchmarkChartView.BarItem(workers + "W", elapsed, color));
-
-            String result = String.format(
-                    Locale.US,
-                    "✓ %d Worker(s): %,d ms | Số nguyên tố: %,d\n  CPU Core ghi nhận: %s\n",
-                    workers, elapsed, totalPrimes, coresUsed
-            );
-
-            Log.i(TAG, String.format(Locale.US, "Config %dW done in %,d ms on Cores %s (Primes: %,d)", workers, elapsed, coresUsed, totalPrimes));
-
-            appendLog(currentRun, result);
-            updateChart(currentRun, chartItems);
-
-            try {
-                Thread.sleep(300);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
+            for (Future<Integer> future : futures) {totalPrimes += future.get();}
+            return totalPrimes;
+        } finally {
+            pool.shutdownNow();
         }
+    }
 
-        appendLog(currentRun, "\n🏁 Đã hoàn thành tất cả các cấu hình thử nghiệm!\n");
-        finishBenchmark(currentRun);
+    private void recordCore(Set<Integer> cores) {
+        int core = CpuUtils.getCurrentCoreId();
+
+        if (core >= 0) {
+            cores.add(core);
+        }
     }
 
     private void appendLog(int currentRun, String message) {
         mainHandler.post(() -> {
             if (binding == null || currentRun != runId) return;
+
             binding.tvBenchmarkDetails.append(message);
             binding.scrollBenchmark.post(() -> binding.scrollBenchmark.fullScroll(View.FOCUS_DOWN));
         });
@@ -213,8 +181,10 @@ public class BenchmarkFragment extends Fragment {
 
     private void updateChart(int currentRun, List<BenchmarkChartView.BarItem> items) {
         List<BenchmarkChartView.BarItem> copy = new ArrayList<>(items);
+
         mainHandler.post(() -> {
             if (binding == null || currentRun != runId) return;
+
             binding.benchmarkChart.setItems(copy);
         });
     }
@@ -222,6 +192,7 @@ public class BenchmarkFragment extends Fragment {
     private void finishBenchmark(int currentRun) {
         mainHandler.post(() -> {
             if (binding == null || currentRun != runId) return;
+
             binding.btnRunBenchmark.setEnabled(true);
             binding.pbBenchmark.setVisibility(View.GONE);
         });
@@ -229,7 +200,6 @@ public class BenchmarkFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
-        Log.d(TAG, "onDestroyView - Cleaning up background executor & handlers");
         runId++;
 
         if (benchmarkExecutor != null) {
@@ -239,6 +209,7 @@ public class BenchmarkFragment extends Fragment {
 
         mainHandler.removeCallbacksAndMessages(null);
         binding = null;
+
         super.onDestroyView();
     }
 }

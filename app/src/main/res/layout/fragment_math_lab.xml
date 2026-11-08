@@ -10,180 +10,136 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:padding="16dp">
 
-        <!-- Cấu hình cơ chế thực thi -->
+        <!-- Cấu hình nhập N và 2 Nút hành động -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="1dp"
-            android:layout_marginBottom="10dp">
+            app:cardCornerRadius="10dp"
+            app:cardElevation="2dp"
+            android:layout_marginBottom="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="12dp">
+                android:padding="16dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="⚙️ Cơ Chế Xử Lý Bất Đồng Bộ"
+                    android:text="🔢 So Sánh Raw Thread vs AsyncTask"
                     android:textStyle="bold"
-                    android:textSize="13sp"
-                    android:textColor="@color/primary"/>
+                    android:textSize="15sp"
+                    android:textColor="#00897B"/>
 
-                <TextView
+                <!-- Nhập N -->
+                <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textSize="3sp"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginTop="2dp"
-                    android:layout_marginBottom="8dp"/>
+                    android:layout_marginTop="12dp"
+                    android:hint="Nhập số N (ví dụ: 50, 10000, 50000)">
 
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtInputN"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:text="50"
+                        android:textSize="14sp"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- 2 Nút bấm chạy trực tiếp -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:layout_marginTop="16dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Chọn cơ chế: "
-                        android:textStyle="bold"
-                        android:textSize="12sp"/>
-
-                    <Spinner
-                        android:id="@+id/spinnerEngine"
+                    <Button
+                        android:id="@+id/btnRunThread"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"/>
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        android:text="1. Raw Thread"
+                        android:textSize="12sp"
+                        android:backgroundTint="#0288D1"/>
+
+                    <Button
+                        android:id="@+id/btnRunAsync"
+                        android:layout_width="0dp"
+                        android:layout_height="48dp"
+                        android:layout_weight="1"
+                        android:layout_marginStart="6dp"
+                        android:text="2. AsyncTask"
+                        android:textSize="12sp"
+                        android:backgroundTint="#00897B"/>
                 </LinearLayout>
+
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-
-        <!-- Bài toán 1 -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="1dp"
-            android:layout_marginBottom="10dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="10dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="1. Tính Fibonacci F(1.000.000)"
-                    android:textStyle="bold"
-                    android:textSize="13sp"
-                    android:textColor="@color/accent"/>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Fast-Doubling nhân BigInteger cực lớn (> 100.000 chữ số)."
-                    android:textSize="11sp"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginTop="2dp"/>
-
-                <Button
-                    android:id="@+id/btnRunFibonacci"
-                    android:layout_width="match_parent"
-                    android:layout_height="40dp"
-                    android:text="Tính Fibonacci"
-                    android:backgroundTint="@color/accent"
-                    android:textSize="12sp"
-                    android:layout_marginTop="6dp"/>
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Bài toán 3 -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="1dp"
-            android:layout_marginBottom="10dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="10dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="2. Burst 900 Micro-tasks (Đo Overhead Luồng)"
-                    android:textStyle="bold"
-                    android:textSize="13sp"
-                    android:textColor="#E65100"/>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Bắn liên tục 600 tác vụ tính toán nhỏ để so sánh chi phí tạo mới Thread vs ThreadPool/Looper."
-                    android:textSize="11sp"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginTop="2dp"/>
-
-                <Button
-                    android:id="@+id/btnRunBurst"
-                    android:layout_width="match_parent"
-                    android:layout_height="40dp"
-                    android:text="Chạy Micro-tasks"
-                    android:backgroundTint="#E65100"
-                    android:textSize="12sp"
-                    android:layout_marginTop="6dp"/>
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Console -->
+        <!-- Trạng thái Loading -->
         <ProgressBar
             android:id="@+id/pbLoading"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:visibility="gone"
-            android:layout_marginBottom="6dp"/>
+            android:layout_marginBottom="12dp"/>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="📋 Log Thực Thi &amp; Chi Tiết Luồng/Core:"
-            android:textStyle="bold"
-            android:textSize="12sp"
-            android:textColor="@color/text_primary"
-            android:layout_marginBottom="4dp"/>
-
-        <ScrollView
-            android:id="@+id/scrollConsole"
+        <!-- Hiển thị kết quả -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
-            android:layout_height="220dp"
-            android:fillViewport="true"
-            android:scrollbars="vertical">
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="2dp">
 
-            <TextView
-                android:id="@+id/tvConsole"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="#FFFFFF"
-                android:padding="8dp"
-                android:textSize="11sp"
-                android:fontFamily="monospace"
-                android:textColor="#222222"
-                android:text="Chọn một cơ chế và bấm bài toán để kiểm tra..." />
+                android:orientation="vertical"
+                android:padding="16dp">
 
-        </ScrollView>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📊 Kết quả thực thi:"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="#333333"/>
+
+                <TextView
+                    android:id="@+id/tvEngineUsed"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Cơ chế: --"
+                    android:textSize="13sp"
+                    android:layout_marginTop="8dp"/>
+
+                <TextView
+                    android:id="@+id/tvExecutionTime"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Thời gian chạy: -- ms"
+                    android:textStyle="bold"
+                    android:textColor="#D32F2F"
+                    android:textSize="13sp"
+                    android:layout_marginTop="4dp"/>
+
+                <TextView
+                    android:id="@+id/tvResultValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Kết quả: [Chưa có]"
+                    android:textSize="13sp"
+                    android:fontFamily="monospace"
+                    android:textColor="#1B5E20"
+                    android:layout_marginTop="6dp"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 </ScrollView>

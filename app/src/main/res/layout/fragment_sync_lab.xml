@@ -81,7 +81,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="1. Biến int thường (Race Condition)"
+                        android:text="1. Biến int thường "
                         android:textStyle="bold"
                         android:textColor="@color/status_failed"
                         android:textSize="13sp"/>
@@ -119,14 +119,6 @@
                         android:textColor="@color/text_secondary"/>
                 </LinearLayout>
 
-                <TextView
-                    android:id="@+id/tvNoSyncMsg"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Tranh chấp đọc-ghi làm mất dữ liệu."
-                    android:textSize="11sp"
-                    android:textColor="@color/status_cancelled"
-                    android:layout_marginTop="2dp"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -152,7 +144,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="2. Biến volatile int (Chỉ có Visibility)"
+                        android:text="2. Biến volatile int "
                         android:textStyle="bold"
                         android:textColor="#E65100"
                         android:textSize="13sp"/>
@@ -190,14 +182,7 @@
                         android:textColor="@color/text_secondary"/>
                 </LinearLayout>
 
-                <TextView
-                    android:id="@+id/tvVolatileMsg"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="💡 Minh chứng: volatile chỉ đảm bảo tầm nhìn, KHÔNG giúp phép counter++ nguyên tử được."
-                    android:textSize="11sp"
-                    android:textColor="#E65100"
-                    android:layout_marginTop="2dp"/>
+
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -245,13 +230,6 @@
                     android:textColor="@color/status_completed"
                     android:layout_marginTop="4dp"/>
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Khóa Mutual Exclusion: Đạt chuẩn 400.000 nhưng có thời gian chờ lock."
-                    android:textSize="11sp"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginTop="2dp"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -276,7 +254,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="4. Dùng AtomicInteger (CAS)"
+                        android:text="4. Dùng AtomicInteger"
                         android:textStyle="bold"
                         android:textColor="@color/accent"
                         android:textSize="13sp"/>
@@ -298,13 +276,6 @@
                     android:textColor="@color/accent"
                     android:layout_marginTop="4dp"/>
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Lệnh phần cứng CPU Compare-And-Swap (lock-free), đạt 400.000 nhanh nhất."
-                    android:textSize="11sp"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginTop="2dp"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

@@ -3,47 +3,26 @@ package com.danghung.imageflow.ui;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.danghung.imageflow.databinding.FragmentMathLabBinding;
-import com.danghung.imageflow.engine.MathEngines;
-import com.danghung.imageflow.util.CpuUtils;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class MathLabFragment extends Fragment {
 
-    private static final int BURST_TASK_COUNT = 900;
-    private static final String[] ENGINES = {
-            "1. Raw Thread",
-            "2. HandlerThread",
-            "3. AsyncTask"
-    };
-
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private FragmentMathLabBinding binding;
-    private ExecutorService labExecutor;
-    private Runnable cancelCleanup;
 
     @Nullable
     @Override
@@ -56,173 +35,121 @@ public class MathLabFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_item, ENGINES);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        binding.spinnerEngine.setAdapter(adapter);
+        binding.btnRunThread.setOnClickListener(v -> {
+            Integer n = getValidInputN();
+            if (n != null) {
+                setLoadingState(true);
+                runWithThread(n);
+            }
+        });
 
-        binding.btnRunFibonacci.setOnClickListener(v -> runFibonacci());
-        binding.btnRunBurst.setOnClickListener(v -> runBurstTasks());
-    }
-
-    private Executor getSelectedExecutor(int engineIndex) {
-        switch (engineIndex) {
-            case 0: // 1. Raw Thread
-                List<Thread> rawThreads = new ArrayList<>();
-                cancelCleanup = () -> {
-                    for (Thread t : rawThreads) t.interrupt();
-                };
-                return task -> {
-                    Thread t = new Thread(task, "RawThread-Worker");
-                    rawThreads.add(t);
-                    t.start();
-                };
-
-            case 1: // 2. HandlerThread
-                HandlerThread ht = new HandlerThread("MathLab-HT");
-                ht.start();
-                Handler handler = new Handler(ht.getLooper());
-                cancelCleanup = ht::quitSafely;
-                return handler::post;
-
-            case 2: // 3. AsyncTask
-            default:
-                cancelCleanup = null;
-                return AsyncTask.THREAD_POOL_EXECUTOR::execute;
-        }
-    }
-
-    // Bài toán 1: Tính Fibonacci F(1.000.000)
-    private void runFibonacci() {
-        int index = binding.spinnerEngine.getSelectedItemPosition();
-        startTaskUI("Tính Fibonacci F(1.000.000)", ENGINES[index]);
-
-        Executor executor = getSelectedExecutor(index);
-        long startTime = SystemClock.elapsedRealtime();
-
-        executor.execute(() -> {
-            try {
-                appendLog("Luồng thực thi: " + CpuUtils.getThreadAndCore());
-                appendLog("Đang tính Fast-Doubling & nhân số lớn...");
-
-                BigInteger result = MathEngines.fibonacciFastDoubling(1_000_000);
-                String str = result.toString();
-                String preview = str.substring(0, Math.min(35, str.length()));
-
-                appendLog("✓ F(1.000.000): " + preview + "...");
-                appendLog(String.format(Locale.US, "✓ Tổng số chữ số: %,d chữ số", str.length()));
-            } catch (Exception e) {
-                appendLog("❌ Lỗi: " + e.getMessage());
-            } finally {
-                finishTaskUI(SystemClock.elapsedRealtime() - startTime);
+        binding.btnRunAsync.setOnClickListener(v -> {
+            Integer n = getValidInputN();
+            if (n != null) {
+                setLoadingState(true);
+                runWithAsyncTask(n);
             }
         });
     }
 
-    // Bài toán 2: Chạy Burst 900 micro-tasks đo chi phí tạo luồng
-    private void runBurstTasks() {
-        int index = binding.spinnerEngine.getSelectedItemPosition();
-        startTaskUI("Burst 900 Micro-tasks (Đo Overhead)", ENGINES[index]);
+    private Integer getValidInputN() {
+        String inputStr = binding.edtInputN.getText() != null ? binding.edtInputN.getText().toString().trim() : "";
+        if (TextUtils.isEmpty(inputStr)) {
+            Toast.makeText(requireContext(), "Vui lòng nhập số N!", Toast.LENGTH_SHORT).show();
+            return null;
+        }
 
-        Executor executor = getSelectedExecutor(index);
+        try {
+            int n = Integer.parseInt(inputStr);
+            if (n < 0) {
+                Toast.makeText(requireContext(), "N phải >= 0!", Toast.LENGTH_SHORT).show();
+                return null;
+            }
+            return n;
+        } catch (NumberFormatException e) {
+            Toast.makeText(requireContext(), "Số N quá lớn!", Toast.LENGTH_SHORT).show();
+            return null;
+        }
+    }
+
+    // 1. Chạy với Raw Thread
+// 1. Chạy với Raw Thread
+    private void runWithThread(int n) {
         long startTime = SystemClock.elapsedRealtime();
 
-        // Thu thập thông tin luồng mẫu và toàn bộ core tham gia gánh 900 tasks
-        Set<Integer> coresUsed = Collections.synchronizedSet(new HashSet<>());
-        final String[] firstThreadSample = new String[1];
+        new Thread(() -> {
+            BigInteger result = calculateFibonacci(n);
+            String preview = formatResult(result);
 
-        labExecutor = Executors.newSingleThreadExecutor();
-        labExecutor.execute(() -> {
-            try {
-                CountDownLatch latch = new CountDownLatch(BURST_TASK_COUNT);
+            // Đo duration ngay trên Main Thread tương tự onPostExecute của AsyncTask
+            mainHandler.post(() -> {
+                if (binding == null) return;
+                long duration = SystemClock.elapsedRealtime() - startTime;
+                displayResult("1. Raw Thread", duration, preview);
+                setLoadingState(false);
+            });
+        }).start();
+    }
 
-                for (int i = 1; i <= BURST_TASK_COUNT; i++) {
-                    final int taskId = i;
-                    executor.execute(() -> {
-                        try {
-                            // Ghi lại thread info của task đầu tiên
-                            if (firstThreadSample[0] == null) {
-                                firstThreadSample[0] = CpuUtils.getThreadAndCore();
-                            }
+    // 2. Chạy với AsyncTask
+    private void runWithAsyncTask(int n) {
+        long startTime = SystemClock.elapsedRealtime();
 
-                            int coreId = CpuUtils.getCurrentCoreId();
-                            if (coreId >= 0) {
-                                coresUsed.add(coreId);
-                            }
-
-                            MathEngines.countPrimes(2, 5_000);
-
-                            if (taskId % 150 == 0 || taskId == BURST_TASK_COUNT) {
-                                appendLog(String.format(
-                                        Locale.US,
-                                        "• Tiến độ: %d/%d tasks | Đang chạy tại %s",
-                                        taskId, BURST_TASK_COUNT, CpuUtils.getThreadAndCore()
-                                ));
-                            }
-                        } finally {
-                            latch.countDown();
-                        }
-                    });
-                }
-
-                latch.await();
-
-                appendLog("\n✓ Thông tin luồng mẫu: " + firstThreadSample[0]);
-                appendLog("✓ Tập CPU Core ghi nhận: " + coresUsed);
-                appendLog("✓ Hoàn thành xử lý toàn bộ " + BURST_TASK_COUNT + " tasks!");
-
-            } catch (Exception e) {
-                appendLog("❌ Lỗi trong quá trình chạy: " + e.getMessage());
-            } finally {
-                finishTaskUI(SystemClock.elapsedRealtime() - startTime);
+        new AsyncTask<Integer, Void, String>() {
+            @Override
+            protected String doInBackground(Integer... params) {
+                BigInteger result = calculateFibonacci(params[0]);
+                return formatResult(result);
             }
-        });
+
+            @Override
+            protected void onPostExecute(String preview) {
+                if (binding == null) return;
+                long duration = SystemClock.elapsedRealtime() - startTime;
+                displayResult("2. AsyncTask", duration, preview);
+                setLoadingState(false);
+            }
+        }.execute(n);
     }
 
-    private void startTaskUI(String title, String engineName) {
-        cancelCurrentTask();
-        binding.tvConsole.setText(String.format(Locale.US, "▶ BẮT ĐẦU: %s\nCơ chế: %s\n----------------------------------------\n", title, engineName));
-        binding.pbLoading.setVisibility(View.VISIBLE);
-        setViewsEnabled(false);
-    }
+    // Tính Fibonacci vòng lặp đơn giản
+    private BigInteger calculateFibonacci(int n) {
+        if (n <= 0) return BigInteger.ZERO;
+        if (n == 1) return BigInteger.ONE;
 
-    private void finishTaskUI(long elapsedMs) {
-        mainHandler.post(() -> {
-            if (binding == null) return;
-            binding.tvConsole.append(String.format(Locale.US, "\n🏁 HOÀN TẤT TRONG: %,d ms\n", elapsedMs));
-            binding.pbLoading.setVisibility(View.GONE);
-            setViewsEnabled(true);
-            cancelCurrentTask();
-        });
-    }
-
-    private void appendLog(String message) {
-        mainHandler.post(() -> {
-            if (binding == null) return;
-            binding.tvConsole.append(message + "\n");
-            binding.scrollConsole.post(() -> binding.scrollConsole.fullScroll(View.FOCUS_DOWN));
-        });
-    }
-
-    private void setViewsEnabled(boolean enabled) {
-        binding.btnRunFibonacci.setEnabled(enabled);
-        binding.btnRunBurst.setEnabled(enabled);
-        binding.spinnerEngine.setEnabled(enabled);
-    }
-
-    private void cancelCurrentTask() {
-        if (cancelCleanup != null) {
-            cancelCleanup.run();
-            cancelCleanup = null;
+        BigInteger a = BigInteger.ZERO;
+        BigInteger b = BigInteger.ONE;
+        for (int i = 2; i <= n; i++) {
+            BigInteger c = a.add(b);
+            a = b;
+            b = c;
         }
-        if (labExecutor != null) {
-            labExecutor.shutdownNow();
-            labExecutor = null;
+        return b;
+    }
+
+    private String formatResult(BigInteger result) {
+        String str = result.toString();
+        if (str.length() > 30) {
+            return str.substring(0, 25) + "... (" + str.length() + " chữ số)";
         }
+        return str;
+    }
+
+    private void displayResult(String engineName, long duration, String result) {
+        binding.tvEngineUsed.setText("Cơ chế: " + engineName);
+        binding.tvExecutionTime.setText("Thời gian chạy: " + duration + " ms");
+        binding.tvResultValue.setText("Kết quả: " + result);
+    }
+
+    private void setLoadingState(boolean isLoading) {
+        binding.pbLoading.setVisibility(isLoading ? View.VISIBLE : View.GONE);
+        binding.btnRunThread.setEnabled(!isLoading);
+        binding.btnRunAsync.setEnabled(!isLoading);
+        binding.edtInputN.setEnabled(!isLoading);
     }
 
     @Override
     public void onDestroyView() {
-        cancelCurrentTask();
         mainHandler.removeCallbacksAndMessages(null);
         binding = null;
         super.onDestroyView();
